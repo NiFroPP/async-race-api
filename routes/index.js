@@ -1,4 +1,7 @@
+const express = require('express');
+const serverless = require('serverless-http');
 const jsonServer = require('json-server');
+const app = express();
 
 const db = {
     garage: [
@@ -32,17 +35,14 @@ const db = {
     ]
 };
 
-const server = jsonServer.create();
-const router = jsonServer.router(db);
+const api = jsonServer.router(db);
 const middlewares = jsonServer.defaults();
-
-const PORT = 3000;
 
 const state = { velocity: {}, blocked: {} };
 
-server.use(middlewares);
+app.use(middlewares);
 
-server.get('/engine', (req, res) => {
+app.get('/engine', (req, res) => {
     const { id, status } = req.query;
 
     if (!id || !status || !/^(started)|(stopped)|(drive)$/.test(status)) {
@@ -59,7 +59,7 @@ server.get('/engine', (req, res) => {
 
         if (!velocity) return res.status(404).send('Engine parameters for car with such id was not found in the garage. Have you tried to set engine status to "started" before?');
         if (state.blocked[id]) return res.status(429).send('Drive already in progress. You can\'t run drive for the same car twice while it\'s not stopped.');
-        
+
         state.blocked[id] = true;
 
         const x = Math.round(distance / velocity);
@@ -93,7 +93,7 @@ server.get('/engine', (req, res) => {
     }
 });
 
-server.use(router);
-server.listen(PORT, () => {
-    console.log('Server is running on port', PORT);
-});
+app.use(api);
+
+module.exports = app;
+module.exports.handler = serverless(app);
